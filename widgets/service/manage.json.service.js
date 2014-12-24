@@ -13,13 +13,22 @@ exports.app = function (req, res, next) {
 
 		console.log("Starting app", req.body.serviceId);
 
-		return EXEC("sudo start app-" + req.body.serviceId.replace(/\./g, "-"), function (err, stdout, stderr) {
+		var cmd = "sudo start app-" + req.body.serviceId.replace(/\./g, "-");
+
+		return EXEC(cmd, function (err, stdout, stderr) {
 			if (err) return next(err);
 
 			console.log("stdout", stdout);
 			console.log("stderr", stderr);
 
-			return res.end("{}");
+			return res.sendEmail({
+				subject: "Started app: " + req.body.serviceId,
+				text: cmd
+			}, function (err) {
+				if (err) return next(err);
+
+				return res.end("{}");
+			});
 		});
 
 	} else
@@ -27,13 +36,22 @@ exports.app = function (req, res, next) {
 
 		console.log("Stopping app", req.body.serviceId);
 
-		return EXEC("sudo stop app-" + req.body.serviceId.replace(/\./g, "-"), function (err, stdout, stderr) {
+		var cmd = "sudo stop app-" + req.body.serviceId.replace(/\./g, "-");
+
+		return EXEC(cmd, function (err, stdout, stderr) {
 			if (err) return next(err);
 
 			console.log("stdout", stdout);
 			console.log("stderr", stderr);
 
-			return res.end("{}");
+			return res.sendEmail({
+				subject: "Stopped app: " + req.body.serviceId,
+				text: cmd
+			}, function (err) {
+				if (err) return next(err);
+
+				return res.end("{}");
+			});
 		});
 
 	} else
@@ -41,13 +59,22 @@ exports.app = function (req, res, next) {
 
 		console.log("Restarting app", req.body.serviceId);
 
-		return EXEC("sudo restart app-" + req.body.serviceId.replace(/\./g, "-"), function (err, stdout, stderr) {
+		var cmd = "sudo restart app-" + req.body.serviceId.replace(/\./g, "-");
+
+		return EXEC(cmd, function (err, stdout, stderr) {
 			if (err) return next(err);
 
 			console.log("stdout", stdout);
 			console.log("stderr", stderr);
 
-			return res.end("{}");
+			return res.sendEmail({
+				subject: "Restarted app: " + req.body.serviceId,
+				text: cmd
+			}, function (err) {
+				if (err) return next(err);
+
+				return res.end("{}");
+			});
 		});
 
 	} else
@@ -55,13 +82,22 @@ exports.app = function (req, res, next) {
 
 		console.log("Kill process", req.body.pid);
 
-		return EXEC("kill " + req.body.pid, function (err, stdout, stderr) {
+		var cmd = "kill " + req.body.pid;
+
+		return EXEC(cmd, function (err, stdout, stderr) {
 			if (err) return next(err);
 
 			console.log("stdout", stdout);
 			console.log("stderr", stderr);
 
-			return res.end("{}");
+			return res.sendEmail({
+				subject: "Killed process: " + req.body.pid,
+				text: cmd
+			}, function (err) {
+				if (err) return next(err);
+
+				return res.end("{}");
+			});
 		});
 
 	} else
@@ -69,13 +105,21 @@ exports.app = function (req, res, next) {
 
 		console.log("Terminate process", req.body.pid);
 
-		return EXEC("kill -9 " + req.body.pid, function (err, stdout, stderr) {
+		var cmd = "kill -9 " + req.body.pid;
+		return EXEC(cmd, function (err, stdout, stderr) {
 			if (err) return next(err);
 
 			console.log("stdout", stdout);
 			console.log("stderr", stderr);
 
-			return res.end("{}");
+			return res.sendEmail({
+				subject: "Terminated process: " + req.body.pid,
+				text: cmd
+			}, function (err) {
+				if (err) return next(err);
+
+				return res.end("{}");
+			});
 		});
 
 	} else {

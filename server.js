@@ -32,44 +32,62 @@ require("io.pinf.server.www").for(module, __dirname, function(app, config, HELPE
 	recordRequest();
 */
 
-	function killProcess (pid, callback) {
+	var watchingAlerts = {};
+
+	function killProcess (serviceId, pid, callback) {
 		console.log("Killing process:", pid);
-		delete watchingAlerts[process.info.PID];
-		return EXEC("kill -9 " + pid, function (err, stdout, stderr) {
+		delete watchingAlerts[pid];
+		var cmd = "kill -9 " + pid;
+		return EXEC(cmd, function (err, stdout, stderr) {
 			if (err) return callback(err);
 			console.log("Process killed:", pid);
-			return callback(null);
+			return HELPERS.sendEmail({
+				subject: "Killed process: " + pid + "(" + serviceId + ")",
+				text: cmd
+			}, callback);
 		});
 	}
 
-	var watchingAlerts = {};
-
-	function triggerAlert (serviceId, process, alertInfo) {
+	function triggerAlert (serviceId, process, alertInfo, callback) {
 
 		console.log("Service", serviceId, "and process", process, "has reached limit", alertInfo.value, "for field", alertInfo.field);
 
 		if (!watchingAlerts[process.info.PID + "-" + alertInfo._id]) {
 			console.log("Keeping an eye on process", process.info.PID, "due to", process.info[alertInfo.field]);
 			watchingAlerts[process.info.PID + "-" + alertInfo._id] = process;
+			return HELPERS.sendEmail({
+				subject: "Keeping an eye on process: " + process.info.PID + " (" + serviceId + ") due to " + process.info[alertInfo.field],
+				text: JSON.stringify(process, null, 4)
+			}, callback);
 		} else
 		if (
 			parseInt(process.info[alertInfo.field]) >
 			parseInt(watchingAlerts[process.info.PID + "-" + alertInfo._id].info[alertInfo.field])
 		) {
-			killProcess(process.info.PID, function (err) {
+			return killProcess(serviceId, process.info.PID, function (err) {
 				if (err) {
 					console.error("Error killing process", process.info.PID, err.stack);
+					return callback(err);
 				}
+				return callback(null);
 			});
 		}
+		return callback(null);
 	}
 
-	function checkIfClearAlert (serviceId, process, alertInfo) {
+	function checkIfClearAlert (serviceId, process, alertInfo, callback) {
 		if (!watchingAlerts[process.info.PID + "-" + alertInfo._id]) {
-			return;
+			return callback(null);
 		}
 		console.log("Usage went down from", watchingAlerts[process.info.PID + "-" + alertInfo._id].info[alertInfo.field], "to", process.info[alertInfo.field], ". No longer keeping eye on process", process.info.PID);
-		delete watchingAlerts[process.info.PID + "-" + alertInfo._id];
+		return HELPERS.sendEmail({
+			subject: "Usage went down from " + watchingAlerts[process.info.PID + "-" + alertInfo._id].info[alertInfo.field] + " to " + process.info[alertInfo.field] + " for process: " + process.info.PID + " (" + serviceId + ")",
+			text: ""
+		}, function (err) {
+			delete watchingAlerts[process.info.PID + "-" + alertInfo._id];
+			if (err) return callback(err);
+			return callback();
+		});
 	}
 
 	function setupAlerts (callback) {
@@ -101,46 +119,60 @@ require("io.pinf.server.www").for(module, __dirname, function(app, config, HELPE
 			return LIST.getProcesses(function (err, proceses) {
 				if (err) return callback(err);
 
-				function checkProcess (process) {
+				function checkProcess (process, callback) {
 
 					var pid = process.info.PID;
 
 					var triggered = false;
+
+					var waitfor = HELPERS.API.WAITFOR.serial(function (err) {
+						if (err) return callback(err);
+
+						if (triggered) {
+							// We don't need to process children as they should be killed automatically
+							// because the parent process is gone.
+							// TODO: Watch and kill all children?
+							return callback(null);
+						}
+
+						var waitfor = HELPERS.API.WAITFOR.serial(callback);
+						if (process.children) {
+							process.children.forEach(function (pid) {
+								waitfor(proceses.byPid[pid], checkProcess);
+							});
+						}
+						return waitfor();
+					});
+
 					if (alerts[serviceId]) {
 						for (var alertId in alerts[serviceId]) {
 							var alertInfo = alerts[serviceId][alertId];
 							alertInfo._id = alertId;
 							if (alertInfo.type === "limit") {
-								if (parseInt(process.info[alertInfo.field]) > parseInt(alertInfo.value)) {
-									triggered = true;
-									triggerAlert(serviceId, process, alertInfo);
-								} else {
-									checkIfClearAlert(serviceId, process, alertInfo);
+								// Ensure process has not just started.
+								if (
+									process.info.TIME !== "0:00" &&
+									process.info.TIME !== "0:01"
+								) {
+									if (parseInt(process.info[alertInfo.field]) > parseInt(alertInfo.value)) {
+										triggered = true;
+										waitfor(serviceId, process, alertInfo, triggerAlert);
+									} else {
+										waitfor(serviceId, process, alertInfo, checkIfClearAlert);
+									}
 								}
 							}
 
 						}
 					}
-
-					if (triggered) {
-						// We don't need to process children as they should be killed automatically
-						// because the parent process is gone.
-						// TODO: Watch and kill all children?
-						return;
-					}
-
-					if (process.children) {
-						process.children.forEach(function (pid) {
-							checkProcess(proceses.byPid[pid]);
-						});
-					}
+					return waitfor();
 				}
 
+				var waitfor = HELPERS.API.WAITFOR.serial(callback);
 				for (var serviceId in proceses.byServiceId) {
-					checkProcess(proceses.byPid[proceses.byServiceId[serviceId]]);
+					waitfor(proceses.byPid[proceses.byServiceId[serviceId]], checkProcess);
 				}
-
-				return callback(null);
+				return waitfor();
 			});
 		}
 

@@ -139,6 +139,14 @@ exports.app = function (req, res, next) {
 		pioConfig.config["pio.services"].order.forEach(function (serviceId) {
 			data.services[serviceId] = (proceses.byServiceId[serviceId] && proceses.byPid[proceses.byServiceId[serviceId]]) || {};
 			data.services[serviceId].group = pioConfig.config["pio.services"].services[serviceId].group;
+			// TODO: Use something other than `env.PORT` to establish if this is a service that can be started.
+			if (
+				pioConfig.config["pio.services"].services[serviceId].descriptor &&
+				pioConfig.config["pio.services"].services[serviceId].descriptor.env &&
+				pioConfig.config["pio.services"].services[serviceId].descriptor.env.PORT
+			) {
+				data.services[serviceId].isApp = true;
+			}
 		});
 
 		function respond(body) {
