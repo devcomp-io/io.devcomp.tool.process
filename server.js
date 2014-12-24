@@ -82,7 +82,7 @@ require("io.pinf.server.www").for(module, __dirname, function(app, config, HELPE
 		console.log("Usage went down from", watchingAlerts[process.info.PID + "-" + alertInfo._id].info[alertInfo.field], "to", process.info[alertInfo.field], ". No longer keeping eye on process", process.info.PID);
 		return HELPERS.sendEmail({
 			subject: "Usage went down from " + watchingAlerts[process.info.PID + "-" + alertInfo._id].info[alertInfo.field] + " to " + process.info[alertInfo.field] + " for process: " + process.info.PID + " (" + serviceId + ")",
-			text: ""
+			text: JSON.stringify(process, null, 4)
 		}, function (err) {
 			delete watchingAlerts[process.info.PID + "-" + alertInfo._id];
 			if (err) return callback(err);
