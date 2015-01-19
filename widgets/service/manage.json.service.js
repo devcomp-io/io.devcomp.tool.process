@@ -22,7 +22,7 @@ exports.app = function (req, res, next) {
 			console.log("stderr", stderr);
 
 			return res.sendEmail({
-				subject: "Started app: " + req.body.serviceId,
+				subject: "[" + pioConfig.config["pio"].hostname + "] manually started app: " + req.body.serviceId,
 				text: cmd
 			}, function (err) {
 				if (err) return next(err);
@@ -45,7 +45,7 @@ exports.app = function (req, res, next) {
 			console.log("stderr", stderr);
 
 			return res.sendEmail({
-				subject: "Stopped app: " + req.body.serviceId,
+				subject: "[" + pioConfig.config["pio"].hostname + "] manually stopped app: " + req.body.serviceId,
 				text: cmd
 			}, function (err) {
 				if (err) return next(err);
@@ -68,7 +68,7 @@ exports.app = function (req, res, next) {
 			console.log("stderr", stderr);
 
 			return res.sendEmail({
-				subject: "Restarted app: " + req.body.serviceId,
+				subject: "[" + pioConfig.config["pio"].hostname + "] manually restarted app: " + req.body.serviceId,
 				text: cmd
 			}, function (err) {
 				if (err) return next(err);
@@ -91,7 +91,7 @@ exports.app = function (req, res, next) {
 			console.log("stderr", stderr);
 
 			return res.sendEmail({
-				subject: "Killed process: " + req.body.pid,
+				subject: "[" + pioConfig.config["pio"].hostname + "] manually killed process: " + req.body.pid,
 				text: cmd
 			}, function (err) {
 				if (err) return next(err);
@@ -113,7 +113,7 @@ exports.app = function (req, res, next) {
 			console.log("stderr", stderr);
 
 			return res.sendEmail({
-				subject: "Terminated process: " + req.body.pid,
+				subject: "[" + pioConfig.config["pio"].hostname + "] manually terminated process: " + req.body.pid,
 				text: cmd
 			}, function (err) {
 				if (err) return next(err);
